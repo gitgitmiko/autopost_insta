@@ -1,0 +1,244 @@
+{
+  "_catatan": "Satu entri = satu akun Instagram. Setelah mengubah jadwal/akun jalankan: .venv/bin/python -m scraper.social n8n-sync",
+  "accounts": [
+    {
+      "key": "game",
+      "enabled": true,
+      "category": "game",
+      "brand_name": "GitGit InfoGame",
+      "brand_handle": "@gitgit_infogame",
+      "ig_user_id": "17841410447689884",
+      "page_id": "1332217146648089",
+      "facebook": true,
+      "use_article_photo": true,
+      "languages": [
+        "id",
+        "en"
+      ],
+      "hashtags": [
+        "gitgit_infogame",
+        "gaming",
+        "game",
+        "beritagame",
+        "gamer",
+        "gamerindonesia",
+        "infogame",
+        "videogame",
+        "esports"
+      ],
+      "schedule": [
+        {
+          "time": "08:00",
+          "kind": "news"
+        },
+        {
+          "time": "09:30",
+          "kind": "news",
+          "topic": "valorant",
+          "max_age_hours": 48
+        },
+        {
+          "time": "11:00",
+          "kind": "news"
+        },
+        {
+          "time": "14:00",
+          "kind": "news"
+        },
+        {
+          "time": "15:30",
+          "kind": "news",
+          "topic": "dota2",
+          "max_age_hours": 168
+        },
+        {
+          "time": "17:00",
+          "kind": "news"
+        },
+        {
+          "time": "18:00",
+          "kind": "news",
+          "topic": "valorant",
+          "max_age_hours": 48
+        },
+        {
+          "time": "19:00",
+          "kind": "steam_deals"
+        },
+        {
+          "time": "21:00",
+          "kind": "news"
+        }
+      ],
+      "max_extra_slides": 3,
+      "comment_overflow": true,
+      "bio_slug": "infogame",
+      "feed_kinds": [
+        "steam_deals"
+      ]
+    },
+    {
+      "key": "politik",
+      "category": "politik",
+      "enabled": true,
+      "ig_user_id": "17841472412123973",
+      "page_id": "1377934192072413",
+      "facebook": true,
+      "use_article_photo": true,
+      "max_extra_slides": 3,
+      "comment_overflow": true,
+      "brand_name": "GitGit InfoPol",
+      "brand_handle": "@gitgit_infopol",
+      "bio_slug": "infopol",
+      "languages": [
+        "id"
+      ],
+      "hashtags": [
+        "gitgit_infopol",
+        "politik",
+        "beritapolitik",
+        "beritaterkini",
+        "indonesia",
+        "infopolitik",
+        "nasional",
+        "pemerintahan",
+        "dpr"
+      ],
+      "schedule": [
+        {
+          "time": "07:00",
+          "kind": "news"
+        },
+        {
+          "time": "10:00",
+          "kind": "news"
+        },
+        {
+          "time": "13:00",
+          "kind": "news"
+        },
+        {
+          "time": "16:00",
+          "kind": "news"
+        },
+        {
+          "time": "19:00",
+          "kind": "news"
+        },
+        {
+          "time": "21:00",
+          "kind": "news"
+        }
+      ]
+    },
+    {
+      "key": "crypto",
+      "category": "crypto",
+      "enabled": true,
+      "ig_user_id": "17841415529761431",
+      "page_id": "1311170928757316",
+      "facebook": true,
+      "use_article_photo": true,
+      "max_extra_slides": 3,
+      "comment_overflow": true,
+      "brand_name": "GitGit InfoCrypto",
+      "brand_handle": "@gitgit_infocrypto",
+      "bio_slug": "infocrypto",
+      "languages": [
+        "id",
+        "en"
+      ],
+      "hashtags": [
+        "gitgit_infocrypto",
+        "crypto",
+        "kripto",
+        "bitcoin",
+        "beritakripto",
+        "cryptocurrency",
+        "blockchain",
+        "investasikripto",
+        "web3"
+      ],
+      "schedule": [
+        {
+          "time": "07:00",
+          "kind": "recap_crypto"
+        },
+        {
+          "time": "10:00",
+          "kind": "news"
+        },
+        {
+          "time": "13:00",
+          "kind": "news"
+        },
+        {
+          "time": "16:00",
+          "kind": "news"
+        },
+        {
+          "time": "19:00",
+          "kind": "recap_crypto"
+        },
+        {
+          "time": "21:00",
+          "kind": "news"
+        }
+      ]
+    },
+    {
+      "key": "saham",
+      "category": "saham",
+      "enabled": true,
+      "ig_user_id": "17841454266556186",
+      "page_id": "1468800429630484",
+      "facebook": true,
+      "use_article_photo": true,
+      "max_extra_slides": 3,
+      "comment_overflow": true,
+      "brand_name": "GitGit InfoSaham",
+      "brand_handle": "@gitgit_infosaham",
+      "bio_slug": "infosaham",
+      "languages": [
+        "id"
+      ],
+      "hashtags": [
+        "gitgit_infosaham",
+        "saham",
+        "IHSG",
+        "investasi",
+        "pasarmodal",
+        "bursaefekindonesia",
+        "beritasaham",
+        "investorsaham",
+        "sahamindonesia"
+      ],
+      "schedule": [
+        {
+          "time": "07:30",
+          "kind": "news"
+        },
+        {
+          "time": "10:00",
+          "kind": "news"
+        },
+        {
+          "time": "12:30",
+          "kind": "news"
+        },
+        {
+          "time": "16:30",
+          "kind": "recap_saham"
+        },
+        {
+          "time": "19:00",
+          "kind": "news"
+        },
+        {
+          "time": "21:00",
+          "kind": "news"
+        }
+      ]
+    }
+  ]
+}

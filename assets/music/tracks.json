@@ -1,0 +1,135 @@
+{
+  "_catatan": "Lagu: Kevin MacLeod (incompetech.com), lisensi CC BY 4.0 — kredit otomatis di caption. Dipotong 75 detik & dinormalkan (-16 LUFS). Tambah lagu: taruh MP3 di folder suasana lalu daftarkan di sini.",
+  "tracks": [
+    {
+      "title": "At Rest",
+      "file": "sedih/at-rest.mp3",
+      "mood": "sedih"
+    },
+    {
+      "title": "Bittersweet",
+      "file": "sedih/bittersweet.mp3",
+      "mood": "sedih"
+    },
+    {
+      "title": "Danse Morialta",
+      "file": "sedih/danse-morialta.mp3",
+      "mood": "sedih"
+    },
+    {
+      "title": "Peaceful Desolation",
+      "file": "sedih/peaceful-desolation.mp3",
+      "mood": "sedih"
+    },
+    {
+      "title": "With Regards",
+      "file": "sedih/with-regards.mp3",
+      "mood": "sedih"
+    },
+    {
+      "title": "Carefree",
+      "file": "senang/carefree.mp3",
+      "mood": "senang"
+    },
+    {
+      "title": "Happy Alley",
+      "file": "senang/happy-alley.mp3",
+      "mood": "senang"
+    },
+    {
+      "title": "Motivator",
+      "file": "senang/motivator.mp3",
+      "mood": "senang"
+    },
+    {
+      "title": "Voxel Revolution",
+      "file": "senang/voxel-revolution.mp3",
+      "mood": "senang"
+    },
+    {
+      "title": "Wallpaper",
+      "file": "senang/wallpaper.mp3",
+      "mood": "senang"
+    },
+    {
+      "title": "Adventures in Adventureland",
+      "file": "seru/adventures-in-adventureland.mp3",
+      "mood": "seru"
+    },
+    {
+      "title": "Go Cart - Drop Mix",
+      "file": "seru/go-cart-drop-mix.mp3",
+      "mood": "seru"
+    },
+    {
+      "title": "Pinball Spring 160",
+      "file": "seru/pinball-spring-160.mp3",
+      "mood": "seru"
+    },
+    {
+      "title": "Raving Energy (faster)",
+      "file": "seru/raving-energy-faster.mp3",
+      "mood": "seru"
+    },
+    {
+      "title": "Shiny Tech",
+      "file": "seru/shiny-tech.mp3",
+      "mood": "seru"
+    },
+    {
+      "title": "Super Power Cool Dude",
+      "file": "seru/super-power-cool-dude.mp3",
+      "mood": "seru"
+    },
+    {
+      "title": "Crusade",
+      "file": "tegang/crusade.mp3",
+      "mood": "tegang"
+    },
+    {
+      "title": "Impending Boom",
+      "file": "tegang/impending-boom.mp3",
+      "mood": "tegang"
+    },
+    {
+      "title": "Man Down",
+      "file": "tegang/man-down.mp3",
+      "mood": "tegang"
+    },
+    {
+      "title": "Minima",
+      "file": "tegang/minima.mp3",
+      "mood": "tegang"
+    },
+    {
+      "title": "Rynos Theme",
+      "file": "tegang/rynos-theme.mp3",
+      "mood": "tegang"
+    },
+    {
+      "title": "Dream Culture",
+      "file": "tenang/dream-culture.mp3",
+      "mood": "tenang"
+    },
+    {
+      "title": "Inspired",
+      "file": "tenang/inspired.mp3",
+      "mood": "tenang"
+    },
+    {
+      "title": "Life of Riley",
+      "file": "tenang/life-of-riley.mp3",
+      "mood": "tenang"
+    },
+    {
+      "title": "Lobby Time",
+      "file": "tenang/lobby-time.mp3",
+      "mood": "tenang"
+    },
+    {
+      "title": "Porch Swing Days - slower",
+      "file": "tenang/porch-swing-days-slower.mp3",
+      "mood": "tenang"
+    }
+  ]
+}

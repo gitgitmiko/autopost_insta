@@ -1,0 +1,15 @@
+[Unit]
+Description=Scraper data gitgit - API konten sosmed untuk n8n
+After=network-online.target docker.service mysql.service
+Wants=network-online.target
+
+[Service]
+User=gitgitmiko
+WorkingDirectory=/home/gitgitmiko/github-repos/scraper-data-gitgit
+ExecStart=/home/gitgitmiko/github-repos/scraper-data-gitgit/.venv/bin/python -m scraper.social api
+# IP 172.18.0.1 baru ada setelah jaringan Docker n8n aktif; coba ulang sampai berhasil
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
