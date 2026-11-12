@@ -85,23 +85,30 @@ def tag_game_topics(db, days=7):
     rows = (db.query(Article.id, Article.title, Article.summary, Source.name)
             .join(Source, Source.id == Article.source_id)
             .filter(Article.category == "game", Article.scraped_at >= utcnow() - timedelta(days=days)).all())
-    existing = {(a, c) for a, c in db.query(ArticleAsset.article_id, ArticleAsset.asset_code)
+    existing = {(a, c): how for a, c, how in db.query(ArticleAsset.article_id, ArticleAsset.asset_code,
+                                                       ArticleAsset.matched_by)
                 .filter(ArticleAsset.asset_type == "game", ArticleAsset.article_id.in_([r[0] for r in rows]))} \
-        if rows else set()
-    added = 0
+        if rows else {}
+    added, wanted = 0, set()
     for aid, title, summary, src_name in rows:
         tags = {}
         if src_name in feed_topic:
             tags[feed_topic[src_name]] = "query"
         for topic, rx in patterns.items():
-            if topic not in tags and rx.search(f"{title} {summary or ''}"):
+            # di judul, atau ≥2 kali di ringkasan: sekadar disebut sekilas (mis. contoh lootbox) bukan berita topik itu
+            if topic not in tags and (rx.search(title) or len(rx.findall(summary or "")) >= 2):
                 tags[topic] = "text"
         for topic, how in tags.items():
+            wanted.add((aid, topic))
             if (aid, topic) not in existing:
                 db.add(ArticleAsset(article_id=aid, asset_type="game", asset_code=topic, matched_by=how))
                 added += 1
+    # tanda kata kunci lama yang tidak lolos aturan sekarang dibuang (kalau tidak, artikel salah topik tetap terpilih)
+    stale = [k for k, how in existing.items() if how == "text" and k not in wanted]
+    for aid, topic in stale:
+        db.query(ArticleAsset).filter_by(article_id=aid, asset_type="game", asset_code=topic).delete()
     db.commit()
-    log.info("Topik game: %d tanda baru", added)
+    log.info("Topik game: %d tanda baru, %d dibuang", added, len(stale))
     return added
 
 

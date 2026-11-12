@@ -17,7 +17,10 @@ log = logging.getLogger("scraper")
 
 
 def run_job(db, job, category, fn):
-    run = ScrapeRun(job=job, category=category, started_at=utcnow())
+    # kolom category hanya 20 karakter: gabungan semua kategori dicatat None (= semua), seperti job images/sentiment
+    if category and set(category.split(",")) >= set(CATEGORIES):
+        category = None
+    run = ScrapeRun(job=job, category=category and category[:20], started_at=utcnow())
     db.add(run)
     db.commit()
     try:

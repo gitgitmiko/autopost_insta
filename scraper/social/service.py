@@ -83,6 +83,12 @@ def build(db, acct, kind, out_path, article_id=None, exclude_ids=(), refresh=Tru
         item = (content.load_news_item(db, article_id, topic) if article_id else
                 content.pick_news(db, acct.category, acct.key, acct.languages, exclude_ids=exclude_ids,
                                   topic=topic, max_age_hours=max_age))
+        if not item and topic and not article_id:
+            # topik khusus sedang sepi (mis. Dota 2 di luar musim turnamen): isi slot dengan berita game umum
+            log.info("[%s] tidak ada berita %s dalam %d jam, memakai berita %s umum", acct.key,
+                     GAME_TOPICS[topic]["label"], max_age, acct.category)
+            topic, max_age = None, settings.NEWS_MAX_AGE_HOURS
+            item = content.pick_news(db, acct.category, acct.key, acct.languages, exclude_ids=exclude_ids)
         if not item:
             what = GAME_TOPICS[topic]["label"] if topic else acct.category
             return None, f"tidak ada berita {what} baru yang layak dalam {max_age} jam"
