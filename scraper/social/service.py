@@ -417,12 +417,14 @@ def _post_dict(r, title):
     }
 
 
-def list_posts(db, account=None, status=None, day=None, page=1, page_size=10):
+def list_posts(db, account=None, status=None, day=None, page=1, page_size=10, platform=None):
     from ..db import Article
     page_size = page_size if page_size in (10, 25, 50, 100) else 10
     q = db.query(SocialPost, Article.title).outerjoin(Article, Article.id == SocialPost.article_id)
     if account:
         q = q.filter(SocialPost.account == account)
+    if platform:
+        q = q.filter(SocialPost.platform == platform)
     if status:
         q = q.filter(SocialPost.status == status)
     if day:
@@ -435,24 +437,31 @@ def list_posts(db, account=None, status=None, day=None, page=1, page_size=10):
             "pageSize": page_size, "totalPages": pages}
 
 
-def overview(db, now=None):
+def overview(db, now=None, platform=None):
+    """platform (mis. "instagram") membatasi statistik, akun, dan jadwal ke satu platform."""
     from sqlalchemy import func
     now = now or datetime.now(settings.TZ)
     today = now.date()
     week_ago = today - timedelta(days=6)
 
+    def only(q):
+        return q.filter(SocialPost.platform == platform) if platform else q
+
     def count(status, since):
-        return db.query(func.count(SocialPost.id)).filter(SocialPost.status == status,
-                                                         SocialPost.slot_date >= since).scalar()
+        return only(db.query(func.count(SocialPost.id)).filter(SocialPost.status == status,
+                                                              SocialPost.slot_date >= since)).scalar()
 
     accounts, upcoming = [], []
     for acct in settings.load_accounts().values():
+        platforms = [p for p in acct.platforms if not platform or p == platform]
+        if not platforms:
+            continue
         rows = {(r.slot, r.platform): r for r in db.query(SocialPost).filter_by(account=acct.key, slot_date=today)}
         schedule = []
         for s in sorted(acct.schedule, key=lambda x: x["time"]):
             slot = settings.slot_name(s)
             plats = []
-            for p in acct.platforms:
+            for p in platforms:
                 r = rows.get((slot, p))
                 plats.append({"platform": p, "status": r.status if r else None,
                               "permalink": r.permalink if r else None,
@@ -466,9 +475,9 @@ def overview(db, now=None):
                                  "label": _label(s["kind"], s.get("topic"))})
         accounts.append({"key": acct.key, "category": acct.category, "brand_name": acct.brand_name,
                          "handle": acct.brand_handle, "enabled": acct.enabled,
-                         "connected": bool(acct.ig_user_id), "platforms": acct.platforms, "schedule": schedule})
+                         "connected": bool(acct.ig_user_id), "platforms": platforms, "schedule": schedule})
 
-    last = (db.query(SocialPost).filter(SocialPost.status == "posted")
+    last = (only(db.query(SocialPost).filter(SocialPost.status == "posted"))
             .order_by(SocialPost.updated_at.desc()).first())
     return {
         "now": now.isoformat(timespec="seconds"),

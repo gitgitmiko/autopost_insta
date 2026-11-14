@@ -2,8 +2,8 @@
 
 POST /prepare  {"account": "game", "hour": 8, "minute": 0}   → konten siap posting / skip / duplicate
 POST /report   {"post_id": 1, "status": "posted", "platform_post_id": "...", "permalink": "...", "error": "..."}
-GET  /overview                      → ringkasan & jadwal hari ini semua akun (untuk dashboard)
-GET  /posts?account=&status=&date=&page=&pageSize=  → riwayat posting
+GET  /overview?platform=             → ringkasan & jadwal hari ini semua akun (untuk dashboard)
+GET  /posts?account=&platform=&status=&date=&page=&pageSize=  → riwayat posting
 GET  /health
 Semua request wajib header X-API-Key = SOCIAL_API_KEY.
 """
@@ -50,12 +50,12 @@ class Handler(BaseHTTPRequestHandler):
         try:
             with Session() as db:
                 if url.path == "/overview":
-                    return self._send(200, service.overview(db))
+                    return self._send(200, service.overview(db, platform=q.get("platform") or None))
                 if url.path == "/posts":
                     day = date.fromisoformat(q["date"]) if q.get("date") else None
                     return self._send(200, service.list_posts(
                         db, q.get("account") or None, q.get("status") or None, day,
-                        int(q.get("page") or 1), int(q.get("pageSize") or 10)))
+                        int(q.get("page") or 1), int(q.get("pageSize") or 10), q.get("platform") or None))
             self._send(404, {"error": "not found"})
         except ValueError as e:
             self._send(400, {"error": f"parameter tidak valid: {e}"})
