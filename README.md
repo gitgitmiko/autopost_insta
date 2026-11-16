@@ -206,7 +206,7 @@ artikel promo/kode redeem disaring, dan feed campuran (Antara Tekno) hanya diamb
     (status `rejected`).
   - **Narasi berlanjut di slide 2+**: sisa ringkasan slide 1 lalu paragraf berikutnya ditulis di bawah gambar/video,
     dipotong di batas kalimat dan diteruskan ke slide berikutnya.
-- **Facebook Reel** (`"facebook_reels": true`, saat ini akun game): video Reel Instagram yang sama (9:16, kartu +
+- **Facebook Reel** (`"facebook_reels": true`, aktif di semua akun: game, politik, crypto, saham): video Reel Instagram yang sama (9:16, kartu +
   lagu) juga diterbitkan sebagai Reel di Facebook Page, **di samping** album foto yang sudah ada (platform
   `facebook_reel` di `social_posts`; di dashboard tampil di tab Facebook dengan label "· Reel").
   Deskripsi = caption Facebook yang diringkas (±1.200 karakter isi) + kredit lagu + blok sumber/link/hashtag.

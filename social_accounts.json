@@ -130,7 +130,8 @@
           "time": "21:00",
           "kind": "news"
         }
-      ]
+      ],
+      "facebook_reels": true
     },
     {
       "key": "crypto",
@@ -185,7 +186,8 @@
           "time": "21:00",
           "kind": "news"
         }
-      ]
+      ],
+      "facebook_reels": true
     },
     {
       "key": "saham",
@@ -239,7 +241,8 @@
           "time": "21:00",
           "kind": "news"
         }
-      ]
+      ],
+      "facebook_reels": true
     }
   ]
 }
