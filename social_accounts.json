@@ -75,7 +75,8 @@
       "bio_slug": "infogame",
       "feed_kinds": [
         "steam_deals"
-      ]
+      ],
+      "facebook_reels": true
     },
     {
       "key": "politik",

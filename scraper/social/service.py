@@ -49,7 +49,8 @@ def _soundtrack(acct, mood, segments, out_path, reel_cover=None):
         log.warning("Reel berlagu (%s) gagal dibuat, posting tanpa lagu: %s", mood, getattr(e, "stderr", None) or e)
         return None, {}
     log.info("[%s] lagu %s: %s", acct.key, mood, track.title)
-    return music.credit(track), {"reel": path, "mood": mood, **({"reel_cover": reel_cover} if reel_cover else {})}
+    return music.credit(track), {"reel": path, "mood": mood, "music_credit": music.credit(track),
+                                 **({"reel_cover": reel_cover} if reel_cover else {})}
 
 
 def _feed_music(acct, mood, slides, out_path):
@@ -227,6 +228,22 @@ def build(db, acct, kind, out_path, article_id=None, exclude_ids=(), refresh=Tru
     raise ValueError(f"jenis konten tidak dikenal: {kind}")
 
 
+REEL_DESC_BODY = 1200  # isi caption Facebook Reel (sisanya: sumber, link, hashtag)
+
+
+def reel_description(fb_caption, music_credit):
+    """Caption Facebook (isi artikel lengkap) diringkas untuk deskripsi Reel: isi dipotong di batas paragraf,
+    blok sumber/link/hashtag (diawali 📰) dipertahankan, kredit lagu (wajib, CC BY) disisipkan."""
+    head, sep, foot = fb_caption.partition("\n\n📰")
+    if len(head) > REEL_DESC_BODY:
+        cut = head.rfind("\n\n", 0, REEL_DESC_BODY)
+        if cut < REEL_DESC_BODY // 3:  # paragraf pertama sangat panjang: potong di akhir kalimat
+            cut = max(head.rfind(". ", 0, REEL_DESC_BODY) + 1, REEL_DESC_BODY // 2)
+        head = head[:cut].rstrip() + " …"
+    parts = [head] + ([music_credit] if music_credit and music_credit not in fb_caption else [])
+    return "\n\n".join(parts) + (sep + foot if sep else "")
+
+
 def _slide_path(first_path, index, ext=None):
     base, first_ext = os.path.splitext(first_path)
     return f"{base[:-2] if base.endswith('-1') else base}-{index}{ext or first_ext}"
@@ -297,13 +314,21 @@ def prepare(db, account, hour=None, minute=None, kind=None, now=None, topic=None
     elif built.get("ig_slides"):  # carousel feed berlagu: semua slide berupa video
         ig_items = [{"url": url(p), "type": "video"} for p in built["ig_slides"]]
     comments = built.get("comments") or {}
+    if "facebook_reel" in pending and not reel_url:  # tanpa video Reel (feed carousel / lagu gagal): lewati
+        r = _row(db, account, slot, day, "facebook_reel")
+        r.status, r.content_type, r.error = "skipped", kind, "tidak ada video Reel untuk slot ini"
+        r.attempts = (r.attempts or 0) + 1
+        pending = [p for p in pending if p != "facebook_reel"]
+    reel_desc = reel_description(built["captions"]["facebook"], built.get("music_credit")) \
+        if "facebook_reel" in pending else None
     post_ids = {}
     for p in pending:
         r = _row(db, account, slot, day, p)
         r.status, r.content_type, r.error = "prepared", kind, None
         r.article_id, r.content_key = built["article_id"], built["content_key"]
-        r.caption, r.image_url = built["captions"][p], image_url
-        r.slides = json.dumps(ig_items if p == "instagram" else slide_items)
+        r.caption, r.image_url = (reel_desc if p == "facebook_reel" else built["captions"][p]), image_url
+        r.slides = json.dumps(ig_items if p == "instagram" else
+                              [{"url": reel_url, "type": "reel"}] if p == "facebook_reel" else slide_items)
         r.comments = json.dumps(comments.get(p) or [], ensure_ascii=False)
         r.attempts = (r.attempts or 0) + 1
         db.flush()
@@ -323,6 +348,12 @@ def prepare(db, account, hour=None, minute=None, kind=None, now=None, topic=None
         "instagram": "instagram" in post_ids, "facebook": "facebook" in post_ids,
         "post_id_instagram": post_ids.get("instagram"), "post_id_facebook": post_ids.get("facebook"),
         "caption_instagram": built["captions"]["instagram"], "caption_facebook": built["captions"]["facebook"],
+        # Facebook Reel: video yang sama dengan Reel IG, diunggah biner oleh n8n dari folder media
+        "facebook_reel": "facebook_reel" in post_ids, "post_id_facebook_reel": post_ids.get("facebook_reel"),
+        "caption_facebook_reel": reel_desc,
+        "reel_path_n8n": (f"{settings.MEDIA_DIR_N8N}/{os.path.relpath(built['reel'], settings.MEDIA_DIR)}"
+                          if reel_url else None),
+        "reel_size": os.path.getsize(built["reel"]) if reel_url else None,
     }
 
 
@@ -405,10 +436,16 @@ def _slot_topic(slot):
     return last if last in GAME_TOPICS else None
 
 
+def _platforms(platform):
+    """Filter platform dashboard: "facebook" juga mencakup baris Facebook Reel ("facebook_reel")."""
+    return [platform, f"{platform}_reel"]
+
+
 def _post_dict(r, title):
+    reel = " · Reel" if r.platform.endswith("_reel") else ""
     return {
         "id": r.id, "account": r.account, "slot": r.slot, "date": r.slot_date.isoformat(),
-        "platform": r.platform, "kind": r.content_type, "label": _label(r.content_type, _slot_topic(r.slot)),
+        "platform": r.platform, "kind": r.content_type, "label": _label(r.content_type, _slot_topic(r.slot)) + reel,
         "status": r.status, "attempts": r.attempts,
         "title": title or ((r.caption or "").split("\n", 1)[0].lstrip("🎮📊🪙🔥🏛️📈 ") or None),
         "image_url": r.image_url, "permalink": r.permalink,
@@ -424,7 +461,7 @@ def list_posts(db, account=None, status=None, day=None, page=1, page_size=10, pl
     if account:
         q = q.filter(SocialPost.account == account)
     if platform:
-        q = q.filter(SocialPost.platform == platform)
+        q = q.filter(SocialPost.platform.in_(_platforms(platform)))
     if status:
         q = q.filter(SocialPost.status == status)
     if day:
@@ -445,7 +482,7 @@ def overview(db, now=None, platform=None):
     week_ago = today - timedelta(days=6)
 
     def only(q):
-        return q.filter(SocialPost.platform == platform) if platform else q
+        return q.filter(SocialPost.platform.in_(_platforms(platform))) if platform else q
 
     def count(status, since):
         return only(db.query(func.count(SocialPost.id)).filter(SocialPost.status == status,
@@ -453,7 +490,7 @@ def overview(db, now=None, platform=None):
 
     accounts, upcoming = [], []
     for acct in settings.load_accounts().values():
-        platforms = [p for p in acct.platforms if not platform or p == platform]
+        platforms = [p for p in acct.platforms if not platform or p in _platforms(platform)]
         if not platforms:
             continue
         rows = {(r.slot, r.platform): r for r in db.query(SocialPost).filter_by(account=acct.key, slot_date=today)}

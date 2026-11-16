@@ -152,6 +152,7 @@ n8n (stack ~/github-repos/n8n), satu workflow per akun: "sdg-social-<akun>"
          ─► Instagram: buat container (image_url = https://media.gitgitmiko.my.id/media/social/…)
             ─► tunggu FINISHED ─► publish ─► permalink ─► POST /report (tabel social_posts)
          ─► Facebook Page (opsional per akun) ─► POST /report
+         ─► Facebook Reel (opsional, `facebook_reels`) ─► POST /report
 ```
 
 - **API Python** `scraper.social.api` berjalan sebagai service systemd `scraper-social-api`, hanya mendengarkan di
@@ -164,6 +165,7 @@ n8n (stack ~/github-repos/n8n), satu workflow per akun: "sdg-social-<akun>"
 
 Satu entri = satu akun Instagram. Kolom: `key`, `category` (game/politik/saham/crypto), `brand_name`,
 `brand_handle`, `ig_user_id`/`page_id` (diisi otomatis oleh `setup-token`), `facebook` (ikut posting ke Page),
+`facebook_reels` (Reel IG juga diterbitkan sebagai Facebook Reel),
 `use_article_photo`, `languages` (urutan prioritas bahasa berita), `hashtags`, `schedule`.
 
 Jenis konten (`kind`): `news` (semua kategori), `steam_deals` (game), `recap_saham`, `recap_crypto`.
@@ -204,6 +206,14 @@ artikel promo/kode redeem disaring, dan feed campuran (Antara Tekno) hanya diamb
     (status `rejected`).
   - **Narasi berlanjut di slide 2+**: sisa ringkasan slide 1 lalu paragraf berikutnya ditulis di bawah gambar/video,
     dipotong di batas kalimat dan diteruskan ke slide berikutnya.
+- **Facebook Reel** (`"facebook_reels": true`, saat ini akun game): video Reel Instagram yang sama (9:16, kartu +
+  lagu) juga diterbitkan sebagai Reel di Facebook Page, **di samping** album foto yang sudah ada (platform
+  `facebook_reel` di `social_posts`; di dashboard tampil di tab Facebook dengan label "· Reel").
+  Deskripsi = caption Facebook yang diringkas (±1.200 karakter isi) + kredit lagu + blok sumber/link/hashtag.
+  Alur n8n: `video_reels` start → baca MP4 dari `/files/media/public/social/…` → unggah **biner** ke
+  `rupload.facebook.com` → finish `PUBLISHED` → tunggu diproses → permalink. Video tidak diambil Facebook dari URL
+  karena robots.txt terkelola Cloudflare di `media.gitgitmiko.my.id` memblokir agen `meta-externalagent`.
+  Slot tanpa video Reel (mis. carousel feed promo Steam) dicatat `skipped` untuk platform ini.
 - Posting ulang artikel tertentu: `POST /prepare {"account": "game", "article_id": 123}` (lewat API lokal).
 
 ### Promo Steam (carousel)

@@ -41,9 +41,15 @@ def _if(name, pos, left, op_type, operation, right=None):
         "options": {}})
 
 
-def _http(name, pos, method, url, cred_type, cred, body=None, form=None, query=None, one_by_one=0, **extra):
+def _http(name, pos, method, url, cred_type, cred, body=None, form=None, query=None, one_by_one=0, headers=None,
+          binary_field=None, **extra):
     p = {"method": method, "url": url, "authentication": "genericCredentialType", "genericAuthType": cred_type,
          "options": {"timeout": 120000}}
+    if headers is not None:
+        p.update(sendHeaders=True, headerParameters={"parameters": [{"name": k, "value": v} for k, v in headers.items()]})
+    if binary_field is not None:  # isi body = file biner dari item (mis. hasil "Read/Write Files from Disk")
+        p.update(sendBody=True, contentType="binaryData", inputDataFieldName=binary_field)
+        p["options"]["timeout"] = 600000
     if one_by_one:  # satu item per request dengan jeda (ms) — urutan komentar/slide dikirim berurutan
         p["options"]["batching"] = {"batch": {"batchSize": 1, "batchInterval": int(one_by_one)}}
     if body is not None:
@@ -197,6 +203,42 @@ def build_workflow(acct):
                                 "'https://www.facebook.com/' + ($json.post_id ?? $json.id)"), **retry),
         _http("Lapor FB gagal", [2160, 600], "POST", f"{api}/report", "httpHeaderAuth", API_CRED,
               body=_report_body(prep + ".post_id_facebook", "failed", err_expr=err), **retry),
+
+        # ---------------- Facebook Reel: video Reel IG yang sama, diunggah biner (Reels Publishing API)
+        # start -> baca file dari folder media (dimount di /files) -> unggah ke rupload -> finish PUBLISHED
+        # -> tunggu diproses -> permalink. Tidak memakai file_url: robots.txt Cloudflare memblokir pengambil URL Meta.
+        _if("Posting FB Reel?", [720, 900], "={{ $json.facebook_reel }}", "boolean", "true"),
+        _http("FBR: mulai", [960, 900], "POST", graph + "/{{ " + prep + ".page_id }}/video_reels", "httpQueryAuth", mc,
+              form={"upload_phase": "start"}, **retry, onError="continueErrorOutput"),
+        _node("FBR: baca video", "readWriteFile", 1, [1200, 900],
+              {"fileSelector": "={{ " + prep + ".reel_path_n8n }}", "options": {"dataPropertyName": "data"}},
+              onError="continueErrorOutput"),
+        _http("FBR: unggah video", [1440, 900], "POST", "={{ $('FBR: mulai').first().json.upload_url }}",
+              "httpQueryAuth", mc, headers={"offset": "0", "file_size": "={{ String(" + prep + ".reel_size) }}"},
+              binary_field="data", retryOnFail=True, maxTries=2, waitBetweenTries=10000,
+              onError="continueErrorOutput"),
+        _http("FBR: terbitkan", [1680, 900], "POST", graph + "/{{ " + prep + ".page_id }}/video_reels",
+              "httpQueryAuth", mc,
+              form={"upload_phase": "finish", "video_id": "={{ $('FBR: mulai').first().json.video_id }}",
+                    "video_state": "PUBLISHED", "description": "={{ " + prep + ".caption_facebook_reel }}"},
+              onError="continueErrorOutput"),
+        _node("Tunggu FB Reel", "wait", 1.1, [1920, 900], {"amount": 10, "unit": "seconds"}),
+        _http("FBR: cek status", [2160, 900], "GET", graph + "/{{ $('FBR: mulai').first().json.video_id }}",
+              "httpQueryAuth", mc, query={"fields": "status,permalink_url"}, **retry, onError="continueErrorOutput"),
+        _if("FB Reel siap?", [2400, 900],
+            "={{ $json.status?.video_status === 'ready' || $json.status?.publishing_phase?.status === 'complete' }}",
+            "boolean", "true"),
+        # diproses Facebook biasanya < 1 menit: maks. 60 × 10 detik
+        _if("FB Reel masih diproses?", [2640, 1000],
+            "={{ !['error', 'expired'].includes($json.status?.video_status) && $runIndex < 60 }}", "boolean", "true"),
+        _http("Lapor FB Reel berhasil", [2640, 820], "POST", f"{api}/report", "httpHeaderAuth", API_CRED,
+              body=_report_body(prep + ".post_id_facebook_reel", "posted", "$('FBR: mulai').first().json.video_id",
+                                "$json.permalink_url ? 'https://www.facebook.com' + $json.permalink_url : null"),
+              **retry),
+        _http("Lapor FB Reel gagal", [2880, 1100], "POST", f"{api}/report", "httpHeaderAuth", API_CRED,
+              body=_report_body(prep + ".post_id_facebook_reel", "failed",
+                                err_expr="($json.status ? 'Facebook Reel: ' + JSON.stringify($json.status).slice(0, 800) : "
+                                         + err + ")"), **retry),
     ]
 
     def to(*names, out=0):
@@ -206,7 +248,7 @@ def build_workflow(acct):
         "Jadwal": [to("Siapkan konten")],
         "Tes manual": [to("Siapkan konten")],
         "Siapkan konten": [to("Konten siap?")],
-        "Konten siap?": [to("Posting IG?", "Posting FB?")],
+        "Konten siap?": [to("Posting IG?", "Posting FB?", "Posting FB Reel?")],
         "Posting IG?": [to("IG: carousel?")],
         "IG: carousel?": [to("IG: pecah slide"), to("IG: buat container", out=1)],
         "IG: buat container": [to("IG: simpan container"), to("Lapor IG gagal", out=1)],
@@ -242,6 +284,15 @@ def build_workflow(acct):
         "FB: unggah foto": [to("FB: kumpulkan foto"), to("Lapor FB gagal", out=1)],
         "FB: kumpulkan foto": [to("FB: posting album")],
         "FB: posting album": [to("Lapor FB berhasil"), to("Lapor FB gagal", out=1)],
+        "Posting FB Reel?": [to("FBR: mulai")],
+        "FBR: mulai": [to("FBR: baca video"), to("Lapor FB Reel gagal", out=1)],
+        "FBR: baca video": [to("FBR: unggah video"), to("Lapor FB Reel gagal", out=1)],
+        "FBR: unggah video": [to("FBR: terbitkan"), to("Lapor FB Reel gagal", out=1)],
+        "FBR: terbitkan": [to("Tunggu FB Reel"), to("Lapor FB Reel gagal", out=1)],
+        "Tunggu FB Reel": [to("FBR: cek status")],
+        "FBR: cek status": [to("FB Reel siap?"), to("Lapor FB Reel gagal", out=1)],
+        "FB Reel siap?": [to("Lapor FB Reel berhasil"), to("FB Reel masih diproses?", out=1)],
+        "FB Reel masih diproses?": [to("Tunggu FB Reel"), to("Lapor FB Reel gagal", out=1)],
     }
     connections = {}
     for src, outs in edges.items():

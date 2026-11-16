@@ -19,6 +19,9 @@ N8N_DIR = os.getenv("N8N_PROJECT_DIR", "/home/gitgitmiko/github-repos/n8n")
 MEDIA_DIR = os.getenv("SOCIAL_MEDIA_DIR", os.path.join(N8N_DIR, "media", "public", "social"))
 MEDIA_BASE_URL = os.getenv("SOCIAL_MEDIA_BASE_URL", "https://media.gitgitmiko.my.id/media/social").rstrip("/")
 MEDIA_KEEP_DAYS = int(os.getenv("SOCIAL_MEDIA_KEEP_DAYS", "14"))
+# Folder media yang sama dilihat dari dalam container n8n (untuk mengunggah video biner ke Facebook Reels:
+# robots.txt Cloudflare memblokir pengambil URL milik Meta, jadi Facebook tidak bisa mengambil video dari URL).
+MEDIA_DIR_N8N = os.getenv("SOCIAL_MEDIA_DIR_N8N", "/files/media/public/social").rstrip("/")
 
 # API lokal yang dipanggil workflow n8n. Default: IP gateway jaringan Docker n8n (tidak terbuka ke internet).
 API_HOST = os.getenv("SOCIAL_API_HOST", "172.18.0.1")
@@ -53,6 +56,7 @@ class Account:
     comment_overflow: bool = False  # isi yang tak muat di caption IG dilanjutkan di komentar (izin instagram_manage_comments)
     music: bool = True  # lagu latar sesuai suasana berita (video slide pertama / Reel) — lihat music.py
     feed_kinds: list = field(default_factory=list)  # jenis konten yang di IG jadi carousel feed berlagu, bukan Reel
+    facebook_reels: bool = False  # Reel IG yang sama juga diposting sebagai Facebook Reel (album foto FB tetap jalan)
     languages: list = field(default_factory=lambda: ["id", "en"])
     hashtags: list = field(default_factory=list)
     schedule: list = field(default_factory=list)  # [{"time": "08:00", "kind": "news"}]
@@ -72,7 +76,8 @@ class Account:
 
     @property
     def platforms(self):
-        return ["instagram"] + (["facebook"] if self.facebook else [])
+        return (["instagram"] + (["facebook"] if self.facebook else [])
+                + (["facebook_reel"] if self.facebook and self.facebook_reels else []))
 
 
 def _read():
