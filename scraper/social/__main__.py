@@ -5,16 +5,18 @@
   python -m scraper.social setup-token --account politik crypto saham --app-id ID --app-secret SECRET --user-token TOKEN
   python -m scraper.social preview --account game [--kind news] [--count 3]
   python -m scraper.social status --account game
+  python -m scraper.social lint caption.txt [--platform facebook]   # cek caption (- = stdin)
 """
 import argparse
 import logging
 import os
 import secrets
 import subprocess
+import sys
 from datetime import datetime
 
 from ..db import Session, init_db
-from . import service, settings
+from . import lint, service, settings
 
 
 def write_env(values):
@@ -130,6 +132,7 @@ def cmd_preview(args):
                 with open(path[:-4] + ".instagram.txt", "w") as f:
                     f.write(built["captions"]["instagram"])
                 print(f"== {name} #{i + 1} → {path}\n{built['captions']['instagram']}\n")
+                print(lint.render(lint.analyse(built["captions"]["instagram"])) + "\n")
 
 
 def main():
@@ -154,6 +157,9 @@ def main():
     s.add_argument("--no-refresh", action="store_true")
     s = sub.add_parser("status")
     s.add_argument("--account", required=True)
+    s = sub.add_parser("lint", help="cek caption: yang terlihat di feed, hashtag, ajakan, link")
+    s.add_argument("file", nargs="?", default="-")
+    s.add_argument("--platform", default="instagram", choices=["instagram", "facebook"])
     s = sub.add_parser("bio", help="buat ulang halaman link di bio")
     s.add_argument("--account", required=True)
     args = p.parse_args()
@@ -170,6 +176,11 @@ def main():
     elif args.cmd == "preview":
         init_db()
         cmd_preview(args)
+    elif args.cmd == "lint":
+        text = sys.stdin.read() if args.file == "-" else open(args.file, encoding="utf-8").read()
+        result = lint.analyse(text, args.platform)
+        print(lint.render(result))
+        sys.exit(0 if result["verdict"] != "PERBAIKI" else 1)
     elif args.cmd == "bio":
         from . import bio
         with Session() as db:

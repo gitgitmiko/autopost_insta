@@ -10,7 +10,34 @@ from .content import publisher_name
 BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober",
          "November", "Desember"]
 HARI = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
-IG_MAX, IG_MAX_TAGS, FB_MAX_TAGS = 2200, 15, 5
+# Instagram membatasi maks. 5 hashtag per post/Reel sejak 18 Des 2025 (sebelumnya 30): tag ke-6 dst. tidak dihitung.
+IG_MAX, IG_MAX_TAGS, FB_MAX_TAGS = 2200, 5, 5
+SPECIFIC_TAGS = 3  # dari 5 slot: maks. 3 tag spesifik (aset/topik), sisanya tag akun (urutan di social_accounts.json)
+
+# Karakter tak terlihat (zero-width, BOM, soft hyphen, tag Unicode) yang sering terbawa dari teks hasil scrape:
+# merusak hashtag & pencarian IG dan tampil sebagai kotak di kartu. ZWJ di antara emoji (mis. 👨‍💻) dipertahankan.
+_EMOJI = "\U0001F000-\U0001FAFF\u2600-\u27BF"
+_INVISIBLE = re.compile("[\u200b\u200c\u2060\ufeff\u00ad\u180e\u061c\U000E0000-\U000E007F]"
+                        f"|(?<![{_EMOJI}\ufe0f])\u200d|\u200d(?![{_EMOJI}])")
+_ODD_SPACE = re.compile("[\u00a0\u202f\u2007\u2009\u200a]")
+
+# Satu ajakan per post (komentar / simpan / bagikan): sinyal yang paling dihitung algoritme IG.
+# Dipilih bergantian per artikel supaya feed tidak terasa template.
+CTA = {
+    "game": ["Menurut kamu gimana? Tulis pendapatmu di komentar 👇",
+             "Tag teman mabarmu yang wajib tahu kabar ini 👇",
+             "Simpan postingan ini biar nggak ketinggalan update 🔖"],
+    "politik": ["Bagaimana pendapatmu? Sampaikan di komentar dengan sopan 👇",
+                "Bagikan ke teman yang perlu tahu kabar ini 📤",
+                "Simpan postingan ini untuk referensi 🔖"],
+    "saham": ["Menurutmu efeknya ke pasar positif atau negatif? Tulis di komentar 👇",
+              "Bagikan ke teman sesama investor 📤",
+              "Simpan postingan ini untuk bahan analisis 🔖"],
+    "crypto": ["Kamu bullish atau bearish? Tulis di komentar 👇",
+               "Bagikan ke teman yang juga main crypto 📤",
+               "Simpan postingan ini untuk bahan riset 🔖"],
+}
+RECAP_CTA = "Bagikan rekap ini ke teman sesama investor 📤"
 
 CATEGORY = {
     "saham": {"label": "Saham", "icon": "📈", "tags": ["saham", "IHSG", "investasi", "pasarmodal", "bursaefekindonesia",
@@ -56,30 +83,52 @@ def wib(dt_utc):
     return dt_utc.replace(tzinfo=timezone.utc).astimezone(settings.TZ)
 
 
+def clean_text(text):
+    """Buang karakter tak terlihat & samakan spasi aneh jadi spasi biasa."""
+    return _ODD_SPACE.sub(" ", _INVISIBLE.sub("", text or ""))
+
+
+def cta_line(category, seed):
+    options = CTA.get(category) or []
+    return options[(seed or 0) % len(options)] if options else None
+
+
 def _hashtag(s):
     t = re.sub(r"[^0-9A-Za-z_]", "", s)
     return "#" + t if t and not t.isdigit() else None
 
 
 def hashtags(category, assets=(), extra=(), limit=IG_MAX_TAGS, base=None):
-    tags = []
+    """Maks. `limit` hashtag: dulu yang spesifik (aset, topik; maks. SPECIFIC_TAGS), lalu tag akun/kategori,
+    lalu sisa tag spesifik bila masih ada slot."""
+    specific = []
     for code in assets:
         if code == "^JKSE":
-            tags.append("IHSG")
+            specific.append("IHSG")
         elif code in TRACKED_COINS:
-            tags += [TRACKED_COINS[code][0], (TRACKED_COINS[code][1] or [""])[0]]
+            specific += [TRACKED_COINS[code][0], (TRACKED_COINS[code][1] or [""])[0]]
         elif not code.startswith("^"):
-            tags.append(code)
-    tags += list(extra) + list(base or CATEGORY[category]["tags"])
-    out = []
-    for t in tags:
-        h = _hashtag(t)
-        if h and h.lower() not in {o.lower() for o in out}:
-            out.append(h)
-    return " ".join(out[:limit])
+            specific.append(code)
+    specific += list(extra)
+    out, seen = [], set()
+
+    def add(tags, upto):
+        for t in tags:
+            h = _hashtag(t)
+            if len(out) >= upto:
+                return
+            if h and h.lower() not in seen:
+                seen.add(h.lower())
+                out.append(h)
+
+    add(specific, min(SPECIFIC_TAGS, limit))
+    add(list(base or CATEGORY[category]["tags"]), limit)
+    add(specific, limit)
+    return " ".join(out)
 
 
 def _finish(text, platform):
+    text = clean_text(text)
     text = re.sub(r"\n{3,}", "\n\n", text).strip()
     if platform == "instagram" and len(text) > IG_MAX:
         text = text[:IG_MAX - 1].rsplit("\n", 1)[0]
@@ -226,8 +275,10 @@ def news_texts(item, platform, acct, music=None, reel=True):
     topic_tags = GAME_TOPICS[item.topic]["hashtags"] if item.topic in GAME_TOPICS else ()
     tail.append(hashtags(a.category, item.assets, topic_tags, _tag_limit(platform), acct.hashtags))
     tail = [t for t in tail if t]
+    cta = cta_line(a.category, a.id)
+    tail = ([cta] if cta else []) + tail
 
-    paras = article_paragraphs(item)
+    paras = [clean_text(p) for p in article_paragraphs(item)]
     if platform == "facebook":
         body, rest = _pack(paras, FB_BODY_MAX)
         if rest:
@@ -253,6 +304,7 @@ def news_texts(item, platform, acct, music=None, reel=True):
         if rest and i == MAX_COMMENTS - 1:
             text += f"\n\n… Baca artikel lengkapnya di {domain}"
         comments.append(text)
+    comments = [clean_text(c) for c in comments]
     parts = [head, _join(body)] + ([CONTINUE_NOTE] if comments else []) + tail
     return _finish("\n\n".join(parts), platform), comments
 
@@ -278,7 +330,7 @@ def stock_recap_caption(r, platform, acct, music=None):
     lines.append(_sentiment_summary(r.sentiment))
     if r.headlines:
         lines.append("🗞️ Berita penggerak hari ini:\n" + "\n".join(f"• {t} ({p})" for t, p in r.headlines))
-    lines += [music if platform == "instagram" else None, DISCLAIMER, hashtags("saham", ["^JKSE"] + [g[0] for g in r.gainers[:2]], limit=_tag_limit(platform),
+    lines += [RECAP_CTA, music if platform == "instagram" else None, DISCLAIMER, hashtags("saham", ["^JKSE"] + [g[0] for g in r.gainers[:2]], limit=_tag_limit(platform),
                                    base=acct.hashtags)]
     return _finish("\n\n".join(x for x in lines if x), platform)
 
@@ -295,7 +347,7 @@ def crypto_recap_caption(r, platform, acct, music=None):
     lines.append(_sentiment_summary(r.sentiment))
     if r.headlines:
         lines.append("🗞️ Berita terkini:\n" + "\n".join(f"• {t} ({p})" for t, p in r.headlines))
-    lines += [music if platform == "instagram" else None, DISCLAIMER, hashtags("crypto", ["bitcoin", "ethereum"], limit=_tag_limit(platform), base=acct.hashtags)]
+    lines += [RECAP_CTA, music if platform == "instagram" else None, DISCLAIMER, hashtags("crypto", ["bitcoin", "ethereum"], limit=_tag_limit(platform), base=acct.hashtags)]
     return _finish("\n\n".join(x for x in lines if x), platform)
 
 

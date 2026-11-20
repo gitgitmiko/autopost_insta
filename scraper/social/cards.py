@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 
 from ..media import image_abspath
 from . import settings
-from .captions import FG_ID, num, pct, rupiah, tanggal, wib
+from .captions import FG_ID, clean_text, num, pct, rupiah, tanggal, wib
 from .content import publisher_name
 
 W, H = 1080, 1350
@@ -38,7 +38,7 @@ def font(weight, size):
 
 def wrap(draw, text, fnt, max_w):
     lines, cur = [], ""
-    for word in text.split():
+    for word in clean_text(text).split():
         trial = f"{cur} {word}".strip()
         if draw.textlength(trial, font=fnt) <= max_w:
             cur = trial
