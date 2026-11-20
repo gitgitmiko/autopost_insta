@@ -76,7 +76,12 @@
       "feed_kinds": [
         "steam_deals"
       ],
-      "facebook_reels": true
+      "facebook_reels": true,
+      "competitors": [
+        "gamebrott",
+        "oneesportsid",
+        "duniagames.co.id"
+      ]
     },
     {
       "key": "politik",
@@ -131,7 +136,12 @@
           "kind": "news"
         }
       ],
-      "facebook_reels": true
+      "facebook_reels": true,
+      "competitors": [
+        "narasinewsroom",
+        "tirtoid",
+        "tempodotco"
+      ]
     },
     {
       "key": "crypto",
@@ -187,7 +197,12 @@
           "kind": "news"
         }
       ],
-      "facebook_reels": true
+      "facebook_reels": true,
+      "competitors": [
+        "tokocrypto",
+        "coinvestasi",
+        "indodax"
+      ]
     },
     {
       "key": "saham",
@@ -242,7 +257,12 @@
           "kind": "news"
         }
       ],
-      "facebook_reels": true
+      "facebook_reels": true,
+      "competitors": [
+        "bareksa",
+        "stockbit",
+        "cnbcindonesia"
+      ]
     }
   ]
 }
