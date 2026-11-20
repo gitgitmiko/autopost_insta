@@ -81,7 +81,8 @@
         "gamebrott",
         "oneesportsid",
         "duniagames.co.id"
-      ]
+      ],
+      "ai_hook": true
     },
     {
       "key": "politik",
@@ -141,7 +142,8 @@
         "narasinewsroom",
         "tirtoid",
         "tempodotco"
-      ]
+      ],
+      "ai_hook": true
     },
     {
       "key": "crypto",
@@ -202,7 +204,8 @@
         "tokocrypto",
         "coinvestasi",
         "indodax"
-      ]
+      ],
+      "ai_hook": true
     },
     {
       "key": "saham",
@@ -262,7 +265,8 @@
         "bareksa",
         "stockbit",
         "cnbcindonesia"
-      ]
+      ],
+      "ai_hook": true
     }
   ]
 }

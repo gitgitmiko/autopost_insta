@@ -127,6 +127,8 @@ def collect(db, acct, days=30, with_insights=True):
                 a, src = db.query(Article, Source).join(Source, Source.id == Article.source_id) \
                     .filter(Article.id == p.article_id).first() or (None, None)
                 row["title"] = a.title if a else ""
+                head = (p.caption or "").split("\n", 1)[0]
+                row["hook"] = "judul asli" if not a or head.endswith(a.title) else "hook AI"
                 row["source"] = src.name if src else "?"
             else:
                 row["title"], row["source"] = p.content_type, "(bukan artikel)"
@@ -183,7 +185,8 @@ def report(acct, rows, insights_ok, metric, med, days):
     out += ["## Pola", ""]
     findings = []
     for key, title in (("slot", "Jam slot (WIB)"), ("kind", "Jenis konten / topik"), ("format", "Format"),
-                       ("source", "Media sumber"), ("day", "Hari"), ("cta", "Ajakan (CTA)")):
+                       ("source", "Media sumber"), ("day", "Hari"), ("cta", "Ajakan (CTA)"),
+                       ("hook", "Hook kartu")):
         lines, items = _group_table(rows, key, title)
         out += lines
         if items and len(items) > 1:

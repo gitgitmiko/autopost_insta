@@ -239,7 +239,7 @@ def news_texts(item, platform, acct, music=None, reel=True):
     publisher = publisher_name(item.source.name)
     domain = urlparse(a.url).netloc.replace("www.", "")
     icon = TOPIC_ICON.get(item.topic, cat["icon"])
-    head = f"{icon} {a.title}"
+    head = f"{icon} {item.headline}"
 
     tail = []
     extra = getattr(item, "extra_slides", 0)

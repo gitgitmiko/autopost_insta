@@ -22,6 +22,12 @@ class NewsItem:
     body: str
     photo_used: bool = False  # diisi saat kartu dibuat: foto berita benar-benar dipakai
     topic: str | None = None  # topik game khusus (valorant/dota2) bila diambil untuk slot topik
+    hook: str | None = None  # hook tulisan LLM yang lolos pemeriksaan (hook.py); None = pakai judul asli
+
+    @property
+    def headline(self):
+        """Teks utama kartu & baris pertama caption: hook bila ada, selain itu judul asli."""
+        return self.hook or self.article.title
 
 
 @dataclass

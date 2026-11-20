@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 from ..config import GAME_TOPICS
 from ..media import ensure_article_details
 from ..db import SocialPost
-from . import captions, cards, content, music, settings
+from . import captions, cards, content, hook, music, settings
 
 log = logging.getLogger(__name__)
 FINAL = ("posted", "skipped")
@@ -108,6 +108,9 @@ def build(db, acct, kind, out_path, article_id=None, exclude_ids=(), refresh=Tru
                        and os.path.exists(cards.image_abspath(item.image_path)))
         if photo_slide:
             item.extra_slides = 1  # kartu pertama cukup judul + "Geser"
+        if acct.ai_hook:  # hook LLM yang lolos pemeriksaan fakta; gagal/lambat → judul asli
+            item.hook, info = hook.make(item.article.title, item.body, item.article.category)
+            log.info("[%s] hook: %s", acct.key, f"{item.hook} ({info})" if item.hook else f"judul asli — {info[:300]}")
         cards.news_card(item, out_path, acct)
         slides = [{"path": out_path, "type": "image"}]
         seconds = []  # lama tampil tiap slide 2+ di Reel, sesuai banyaknya teks
