@@ -116,16 +116,20 @@ def build(db, acct, kind, out_path, article_id=None, exclude_ids=(), refresh=Tru
         narration = captions.slide_narration(item)  # lanjutan isi artikel, diteruskan dari slide ke slide
         # panel teks bergantian bawah/atas/mengambang supaya carousel tidak monoton
         layouts = cards.slide_layouts([m["type"] for m in media], out_path)
+        total = 1 + len(media) + bool(photo_slide)
         for i, (m, layout) in enumerate(zip(media, layouts), start=2):
+            page = f"{len(slides) + 1}/{total}"
             try:
                 if m["type"] == "video":
                     path = _slide_path(out_path, i, ".mp4")
                     rest = cards.video_slide(m["path"], path, acct, theme, layout, f"Video: {pub}",
-                                             f"Sumber: {pub}", heading=item.article.title, narration=narration)
+                                             f"Sumber: {pub}", heading=item.article.title, narration=narration,
+                                             page=page)
                 else:
                     path = _slide_path(out_path, i)
                     rest = cards.image_slide(m["path"], path, acct, theme, layout, f"Foto: {pub}",
-                                             f"Sumber: {pub}", heading=item.article.title, narration=narration)
+                                             f"Sumber: {pub}", heading=item.article.title, narration=narration,
+                                             page=page)
                 shown = _words(narration) - _words(rest) if narration else len(item.article.title.split())
                 sec = music.read_seconds(shown)
                 if m["type"] == "video":  # potongan video artikel (tanpa suara aslinya), cukup untuk dibaca
@@ -139,7 +143,8 @@ def build(db, acct, kind, out_path, article_id=None, exclude_ids=(), refresh=Tru
             try:
                 path = _slide_path(out_path, 2)
                 cards.image_slide(item.image_path, path, acct, theme, "bottom", f"Foto: {pub}", f"Sumber: {pub}",
-                                  heading=item.article.title, narration=narration)
+                                  heading=item.article.title, narration=narration,
+                                  page=f"{len(slides) + 1}/{len(slides) + 1}")
                 slides.append({"path": path, "type": "image"})
             except Exception as e:
                 log.warning("slide foto utama gagal dibuat: %s", e)

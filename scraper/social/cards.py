@@ -318,30 +318,43 @@ def _media_slide_base(acct, theme, layout, credit, source_line, heading, narrati
     return img, box, rest, clear if layout == "float" else box
 
 
-def _decorate_media(img, acct, layout, box, credit):
-    """Logo akun (bila belum ada di panel) & kredit media di pojok media."""
+def _page_chip(draw, acct, layout, page):
+    """Nomor slide ("2/4") di samping logo akun: orang lebih sering menggeser sampai habis bila ujungnya terlihat."""
+    f = font("ExtraBold", 28)
+    x = PAD + draw.textlength(acct.brand_name, font=f) + (40 if layout != "top" else 0) + 16
+    y = 30 if layout == "top" else PAD
+    tw = draw.textlength(page, font=f)
+    draw.rounded_rectangle((x, y, x + tw + 32, y + 54), radius=27, fill=(0, 0, 0, 150))
+    draw.text((x + 16, y + 11), page, font=f, fill=WHITE)
+
+
+def _decorate_media(img, acct, layout, box, credit, page=None):
+    """Logo akun (bila belum ada di panel), nomor slide & kredit media di pojok media."""
     draw = ImageDraw.Draw(img, "RGBA")
     x, y, w, h = box
     if layout != "top":
         _brand(draw, PAD, PAD, acct)
+    if page:
+        _page_chip(draw, acct, layout, page)
     # float: kredit di kanan atas supaya tidak tertutup kotak teks
     _credit_chip(draw, W - PAD, PAD + 46 if layout == "float" else y + h - 20, credit)
 
 
-def image_slide(image_rel, path, acct, theme, layout, credit, source_line, heading=None, narration=None):
-    """Slide gambar dari isi artikel + lanjutan narasi di panel teks. Return sisa narasi."""
+def image_slide(image_rel, path, acct, theme, layout, credit, source_line, heading=None, narration=None, page=None):
+    """Slide gambar dari isi artikel + lanjutan narasi di panel teks. page: nomor slide, mis. "2/4".
+    Return sisa narasi."""
     photo = Image.open(image_abspath(image_rel)).convert("RGB")
     panel, box, rest, clear = _media_slide_base(acct, theme, layout, credit, source_line, heading, narration)
     img = Image.new("RGB", (W, H), theme["bg"])
     _paste_media(img, photo, box, clear)
     img.paste(panel, (0, 0), panel)
-    _decorate_media(img, acct, layout, box, credit)
+    _decorate_media(img, acct, layout, box, credit, page)
     img.save(path, "JPEG", quality=93, optimize=True)
     return rest
 
 
 def video_slide(video_rel, path, acct, theme, layout, credit, source_line, heading=None, max_seconds=60,
-                narration=None):
+                narration=None, page=None):
     """Slide video carousel: panel teks (Pillow) + video ditempel (ffmpeg) di area media.
     Hasil MP4 1080x1350, H.264/AAC, 30 fps, maks. max_seconds detik. Return sisa narasi."""
     from ..media import FFMPEG, probe_video
@@ -359,7 +372,7 @@ def video_slide(video_rel, path, acct, theme, layout, credit, source_line, headi
         fit = f"scale={ow}:{oh}:force_original_aspect_ratio=decrease,pad={ow}:{oh}:(ow-iw)/2:(oh-ih)/2:black"
     # logo & kredit digambar di lapisan transparan di atas video
     over = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    _decorate_media(over, acct, layout, (x, y, ow, oh), credit)
+    _decorate_media(over, acct, layout, (x, y, ow, oh), credit, page)
     top_png = path[:-4] + ".top.png"
     over.save(top_png)
     cmd = [FFMPEG, "-y", "-loglevel", "error", "-loop", "1", "-framerate", "30", "-i", base, "-i", src,

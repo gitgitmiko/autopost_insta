@@ -59,6 +59,7 @@ class Account:
     facebook_reels: bool = False  # Reel IG yang sama juga diposting sebagai Facebook Reel (album foto FB tetap jalan)
     languages: list = field(default_factory=lambda: ["id", "en"])
     hashtags: list = field(default_factory=list)
+    competitors: list = field(default_factory=list)  # username IG pesaing untuk riset `viral` (business_discovery)
     schedule: list = field(default_factory=list)  # [{"time": "08:00", "kind": "news"}]
 
     def slot_at(self, hhmm, tolerance_min=5):

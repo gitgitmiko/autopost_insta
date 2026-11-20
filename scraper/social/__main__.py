@@ -5,6 +5,8 @@
   python -m scraper.social setup-token --account politik crypto saham --app-id ID --app-secret SECRET --user-token TOKEN
   python -m scraper.social preview --account game [--kind news] [--count 3]
   python -m scraper.social status --account game
+  python -m scraper.social audit --account game [--days 30]       # post terbaik/terlemah & polanya
+  python -m scraper.social viral --account game                   # swipe file dari akun pesaing
   python -m scraper.social lint caption.txt [--platform facebook]   # cek caption (- = stdin)
 """
 import argparse
@@ -157,6 +159,12 @@ def main():
     s.add_argument("--no-refresh", action="store_true")
     s = sub.add_parser("status")
     s.add_argument("--account", required=True)
+    s = sub.add_parser("audit", help="audit post IG yang sudah tayang (kelipatan vs median akun)")
+    s.add_argument("--account", required=True, nargs="+")
+    s.add_argument("--days", type=int, default=30)
+    s = sub.add_parser("viral", help="rangking post akun pesaing (kelipatan vs median akun) → swipe file")
+    s.add_argument("--account", required=True, nargs="+")
+    s.add_argument("--top", type=int, default=20)
     s = sub.add_parser("lint", help="cek caption: yang terlihat di feed, hashtag, ajakan, link")
     s.add_argument("file", nargs="?", default="-")
     s.add_argument("--platform", default="instagram", choices=["instagram", "facebook"])
@@ -176,6 +184,15 @@ def main():
     elif args.cmd == "preview":
         init_db()
         cmd_preview(args)
+    elif args.cmd == "audit":
+        from . import insights
+        with Session() as db:
+            for key in args.account:
+                print(insights.run(db, settings.get_account(key), args.days) + "\n")
+    elif args.cmd == "viral":
+        from . import viral
+        for key in args.account:
+            print(viral.run(settings.get_account(key), args.top) + "\n")
     elif args.cmd == "lint":
         text = sys.stdin.read() if args.file == "-" else open(args.file, encoding="utf-8").read()
         result = lint.analyse(text, args.platform)

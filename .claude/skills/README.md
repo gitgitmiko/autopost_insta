@@ -17,4 +17,13 @@ Tidak dipasang: `/ig-dm`, `/ig-story`, `/ig-comment`, `/ig-reply`, `/ig-repurpos
 interaksi, tidak cocok untuk akun otomatis).
 
 Profil gaya bahasa yang dibaca semua skill: `~/.claude/instagram/voice.md`.
-Linter caption versi proyek (Bahasa Indonesia): `.venv/bin/python -m scraper.social lint <file|->`.
+Perintah proyek yang mengadaptasi skill ini:
+
+- `.venv/bin/python -m scraper.social lint <file|->`: linter caption Bahasa Indonesia (/ig-caption)
+- `.venv/bin/python -m scraper.social audit --account game [--days 30]`: post terbaik/terlemah & pola per jam,
+  jenis, format, sumber, hari, CTA (/ig-audit) → `data/reports/audit-*.md`
+- `.venv/bin/python -m scraper.social viral --account game`: rangking post akun pesaing (`competitors` di
+  social_accounts.json) → `data/reports/swipe-*.md`, lalu `/ig-viral` untuk menamai formula hook
+
+`audit` memakai views/reach/saves/shares bila token punya izin `instagram_manage_insights`; tanpa izin itu
+memakai like + komentar. `viral` wajib izin tersebut (business_discovery).
