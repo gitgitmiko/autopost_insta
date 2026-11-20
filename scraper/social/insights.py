@@ -97,7 +97,9 @@ def collect(db, acct, days=30, with_insights=True):
     """Gabungkan media IG dengan baris social_posts (slot, jenis, artikel). Return (rows, insights_ok)."""
     token = page_token(acct)
     since = utcnow() - timedelta(days=days)
-    media = fetch_media(acct, token, since)
+    # post < 24 jam belum selesai didistribusikan: angkanya belum bisa dibandingkan
+    fresh = (utcnow() - timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%S")
+    media = [m for m in fetch_media(acct, token, since) if m["timestamp"][:19] <= fresh]
     insights_ok = fetch_insights(media, token) if with_insights and media else False
     posts = {p.platform_post_id: p for p in db.query(SocialPost).filter(
         SocialPost.account == acct.key, SocialPost.platform == "instagram", SocialPost.status == "posted",
@@ -159,7 +161,7 @@ def _group_table(rows, key, title, min_n=3):
 def report(acct, rows, insights_ok, metric, med, days):
     label = "views" if metric == "views" else "interaksi (like + 3 x komentar)"
     out = [f"# Audit Instagram {acct.brand_handle} · {days} hari terakhir", "",
-           f"{len(rows)} post · metrik: **{label}** · median akun: **{_num(med, 1)}**", ""]
+           f"{len(rows)} post (tanpa post < 24 jam) · metrik: **{label}** · median akun: **{_num(med, 1)}**", ""]
     if not insights_ok:
         out += ["> Token belum punya izin `instagram_manage_insights`, jadi reach/views/saves/shares tidak tersedia "
                 "dan audit memakai like + komentar. Tambahkan izin itu saat membuat user token lalu jalankan "
