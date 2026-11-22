@@ -4,6 +4,7 @@ Ditulis sebagai HTML statis ke <n8n>/media/public/links/<bio_slug>/ dan disajika
 https://media.gitgitmiko.my.id/l/<bio_slug>/ — dibuat ulang setiap ada postingan Instagram yang terbit.
 """
 import html
+import json
 import logging
 import os
 
@@ -17,7 +18,8 @@ from .cards import THEME, TOPIC_THEME
 log = logging.getLogger(__name__)
 LINKS_DIR = os.path.join(os.path.dirname(settings.MEDIA_DIR), "links")
 MAX_ITEMS = 40
-KIND_LABEL = {"news": "Berita", "steam_deals": "Promo Steam", "recap_saham": "Rekap saham",
+KIND_LABEL = {"news": "Berita", "steam_deals": "Sale Steam", "xbox_deals_id": "Sale Xbox Indonesia",
+              "xbox_deals_tr": "Sale Xbox Turki", "duo_reel": "Video", "recap_saham": "Rekap saham",
               "recap_crypto": "Rekap crypto"}
 
 
@@ -49,6 +51,21 @@ def _thumb(post, out_dir):
 def _topic(slot):
     last = (slot or "").rsplit("-", 1)[-1]
     return last if last in TOPIC_THEME else None
+
+
+SALE_LINK = {"steam_deals": ("Steam", "https://store.steampowered.com/specials"),
+             "xbox_deals_id": ("Xbox Indonesia", "https://www.xbox.com/id-ID/games/browse/DynamicChannel.GameDeals"),
+             "xbox_deals_tr": ("Xbox Turki", "https://www.xbox.com/tr-TR/games/browse/DynamicChannel.GameDeals")}
+
+
+def _sale_games(post):
+    """Daftar game postingan sale (file .games.json di samping gambar cover). None bila tidak ada."""
+    path = _local_path(post.image_url or "")
+    side = os.path.splitext(path)[0] + ".games.json" if path else None
+    if side and os.path.exists(side):
+        with open(side) as f:
+            return json.load(f)
+    return None
 
 
 def _promo_games(db, post):
@@ -94,7 +111,14 @@ def render(db, acct):
             for y in (db.query(ArticleYoutube).filter_by(article_id=a.id).order_by(ArticleYoutube.position).limit(2)):
                 links.append((f"🎬 Tonton video{': ' + y.title[:40] if y.title else ''}", y.url))
         games_html = ""
-        if p.content_type == "steam_deals":
+        sale_games = _sale_games(p) if p.content_type in SALE_LINK else None
+        if sale_games:
+            links.append((f"🎮 Lihat semua di {SALE_LINK[p.content_type][0]}", SALE_LINK[p.content_type][1]))
+            games_html = (f'<details class="games" open><summary>{len(sale_games)} game di promo ini</summary><ul>'
+                          + "".join(f'<li><a href="{html.escape(g["url"])}" target="_blank" rel="noopener">'
+                                    f'{html.escape(g["title"])}</a><span>-{g["disc"]}% · {html.escape(g["price"])}</span></li>'
+                                    for g in sale_games) + "</ul></details>")
+        elif p.content_type == "steam_deals":
             links.append(("🎮 Lihat semua promo di Steam", "https://store.steampowered.com/specials"))
             games = _promo_games(db, p)
             if games:

@@ -38,6 +38,8 @@ DOCKER_CMD = os.getenv("DOCKER_CMD", "sudo docker").split()
 
 NEWS_MAX_AGE_HOURS = int(os.getenv("SOCIAL_NEWS_MAX_AGE_HOURS", "18"))
 MAX_ATTEMPTS = 3
+# Video Kai & Kak Ara siap tayang (dibuat nostalgia-reels/daily.py), dipakai jenis konten "duo_reel".
+DUO_OUTBOX = os.getenv("DUO_OUTBOX", "/home/gitgitmiko/github-repos/nostalgia-reels/data/outbox")
 
 
 @dataclass
@@ -57,6 +59,7 @@ class Account:
     music: bool = True  # lagu latar sesuai suasana berita (video slide pertama / Reel) — lihat music.py
     feed_kinds: list = field(default_factory=list)  # jenis konten yang di IG jadi carousel feed berlagu, bukan Reel
     facebook_reels: bool = False  # Reel IG yang sama juga diposting sebagai Facebook Reel (album foto FB tetap jalan)
+    facebook_photos: bool = True  # False: di Facebook hanya Reel, tanpa postingan foto/album (akun video seperti kaiara)
     languages: list = field(default_factory=lambda: ["id", "en"])
     hashtags: list = field(default_factory=list)
     ai_hook: bool = False  # hook kartu/caption ditulis LLM via 9router (hook.py), cadangan: judul asli
@@ -78,7 +81,7 @@ class Account:
 
     @property
     def platforms(self):
-        return (["instagram"] + (["facebook"] if self.facebook else [])
+        return (["instagram"] + (["facebook"] if self.facebook and self.facebook_photos else [])
                 + (["facebook_reel"] if self.facebook and self.facebook_reels else []))
 
 

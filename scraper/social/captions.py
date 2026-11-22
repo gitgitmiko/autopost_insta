@@ -374,3 +374,53 @@ def steam_deals_caption(deals, platform, acct, music=None, reel=True):
     lines.append(hashtags("game", (), ("steam", "steamsale", "diskongame", "pcgaming"), _tag_limit(platform),
                           acct.hashtags))
     return _finish("\n\n".join(lines), platform)
+
+
+SALE_LINKS = {("steam", "ID"): "https://store.steampowered.com/specials",
+              ("xbox", "ID"): "https://www.xbox.com/id-ID/games/browse/DynamicChannel.GameDeals",
+              ("xbox", "TR"): "https://www.xbox.com/tr-TR/games/browse/DynamicChannel.GameDeals"}
+SALE_STORE = {("steam", "ID"): "Steam", ("xbox", "ID"): "Xbox Indonesia", ("xbox", "TR"): "Xbox Turki"}
+
+
+def sale_price(deals, value, with_idr=True):
+    if not value:
+        return "Gratis"
+    if deals.currency == "TRY":
+        s = f"{num(value, 2)} TL"
+        if with_idr and deals.idr_rate:
+            s += f" (≈ Rp{num(round(value * deals.idr_rate, -2))})"
+        return s
+    return "Rp" + num(value)
+
+
+def sale_caption(deals, platform, acct, music=None, reel=False, now=None):
+    """Caption postingan sale besar (Steam / Xbox ID / Xbox TR)."""
+    from datetime import datetime as _dt, timezone as _tz
+    now = now or _dt.now(_tz.utc)
+    store = SALE_STORE.get((deals.store, deals.region), deals.store.title())
+    ev = deals.event
+    left = ev.days_left(now)
+    when = ("hari terakhir!" if left <= 0 else "berakhir besok!" if left == 1 else f"sisa {left} hari!")
+    if ev.day_number(now) == 1:
+        when = "baru mulai!"
+    end = ev.end.astimezone(settings.TZ)
+    lines = [f"🚨 {ev.name.title()} {store} — {when}",
+             f"{len(deals.items)} game diskon gede-gedean di {store}"
+             + (" (harga region Turki, kurs Rupiah perkiraan):" if deals.currency == "TRY" else ":")]
+    lines.append("\n".join(f"🎮 {i['title']} — -{i['disc']}% jadi {sale_price(deals, i['final'])}" for i in deals.items))
+    lines.append(f"⏰ Berakhir {tanggal(end.date())} pukul {end:%H:%M} WIB.")
+    if deals.currency == "TRY":
+        lines.append("💡 Harga Turki hanya bisa dibeli dengan akun Xbox region Turki.")
+    lines.append("Tonton sampai habis ▶️" if reel else "Geser untuk melihat semua ➡️")
+    if platform == "instagram" and acct.bio_slug:
+        lines.append("🔗 Link tiap game ada di bio")
+    else:
+        lines.append(f"🔗 Lihat semua: {SALE_LINKS.get((deals.store, deals.region))}")
+    lines.append("Harga dapat berubah sewaktu-waktu — cek langsung di toko sebelum membeli.")
+    lines.append("Mana yang langsung kamu checkout? Tulis di komentar! 👇")
+    if music and platform == "instagram":
+        lines.append(music)
+    extra = (("steam", "steamsale", "diskongame", "pcgaming") if deals.store == "steam" else
+             ("xbox", "xboxsale", "diskongame", "xboxseriesx") + (("xboxturki",) if deals.region == "TR" else ()))
+    lines.append(hashtags("game", (), extra + (ev.name.lower().replace(" ", ""),), _tag_limit(platform), acct.hashtags))
+    return _finish("\n\n".join(lines), platform)

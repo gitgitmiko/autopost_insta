@@ -171,35 +171,8 @@ def build(db, acct, kind, out_path, article_id=None, exclude_ids=(), refresh=Tru
                 "captions": {p: t[0] for p, t in texts.items()},
                 "comments": {p: t[1] for p, t in texts.items()}, "slides": slides, **video}, None
 
-    if kind == "steam_deals":
-        if refresh:  # harga & pilihan terbaru sesaat sebelum posting
-            from ..scrapers.games import scrape_steam_promo
-            try:
-                scrape_steam_promo(db)
-            except Exception as e:
-                db.rollback()
-                log.warning("refresh promo Steam gagal, memakai data terakhir: %s", e)
-        deals = content.steam_deals(db)
-        if not deals:
-            return None, "data promo Steam belum ada"
-        last = (db.query(SocialPost.content_key)
-                .filter(SocialPost.account == acct.key, SocialPost.content_type == "steam_deals",
-                        SocialPost.status == "posted").order_by(SocialPost.id.desc()).first())
-        if last and set((last[0] or "").split(",")) == set(deals.key.split(",")):
-            return None, "daftar promo Steam sama dengan postingan sebelumnya"
-        n_slides = 1 + -(-len(deals.items) // cards.PER_SLIDE)
-        paths = [out_path] + [_slide_path(out_path, i) for i in range(2, n_slides + 1)]
-        cards.steam_promo_slides(deals, paths, acct)
-        credit, video = None, {}
-        if kind in acct.feed_kinds:  # carousel feed berlagu (cover tetap dengan "Geser »")
-            credit, video = _feed_music(acct, "seru", [{"path": p, "type": "image"} for p in paths], out_path)
-        elif acct.music:  # Reel tidak bisa digeser: cover tanpa "Geser »" (album Facebook tetap memakai paths[0])
-            reel_cover = cards.steam_cover(deals, _slide_path(out_path, "reel-cover"), acct, swipe_hint=False)
-            credit, video = _soundtrack(acct, "seru", [(p, music.STEAM_SLIDE_SECONDS) for p in [reel_cover] + paths[1:]],
-                                        out_path, reel_cover)
-        caps = {p: captions.steam_deals_caption(deals, p, acct, credit, reel="reel" in video) for p in plats}
-        return {"article_id": None, "content_key": deals.key, "captions": caps, "title": "Promo Steam",
-                "slides": [{"path": p, "type": "image"} for p in paths], **video}, None
+    if kind in SALE_KINDS:
+        return _sale(db, acct, kind, out_path, refresh)
 
     if kind == "recap_saham":
         if refresh:  # harga penutupan terbaru sesaat sebelum posting
@@ -233,7 +206,92 @@ def build(db, acct, kind, out_path, article_id=None, exclude_ids=(), refresh=Tru
         credit, video = _soundtrack(acct, music.market_mood(avg), [(out_path, music.SINGLE_SECONDS)], out_path)
         caps = {p: captions.crypto_recap_caption(r, p, acct, credit) for p in plats}
         return {"article_id": None, "content_key": None, "captions": caps, "title": "Rekap crypto", **video}, None
+    if kind == "duo_reel":
+        return _duo_reel(db, acct, out_path)
     raise ValueError(f"jenis konten tidak dikenal: {kind}")
+
+
+SALE_KINDS = {"steam_deals": ("steam", "ID"), "xbox_deals_id": ("xbox", "ID"), "xbox_deals_tr": ("xbox", "TR")}
+
+
+def _sale(db, acct, kind, out_path, refresh=True):
+    """Carousel sale besar (Steam/Xbox). Tanpa event sale besar → dilewati (diskon harian tidak diposting)."""
+    from . import sale_cards, sales
+    store, region = SALE_KINDS[kind]
+    if store == "steam":
+        if not sales.current_steam_event():
+            return sales.steam_sale_deals(db, None)
+        if refresh:  # harga & pilihan terbaru sesaat sebelum posting
+            from ..scrapers.games import scrape_steam_promo
+            try:
+                scrape_steam_promo(db)
+            except Exception as e:
+                db.rollback()
+                log.warning("refresh promo Steam gagal, memakai data terakhir: %s", e)
+        deals, why = sales.steam_sale_deals(db, content.steam_deals(db))
+    else:
+        deals, why = sales.xbox_deals(db, region, kind)
+    if not deals:
+        return None, why
+    last = (db.query(SocialPost.content_key)
+            .filter(SocialPost.account == acct.key, SocialPost.content_type == kind,
+                    SocialPost.status == "posted").order_by(SocialPost.id.desc()).first())
+    if last and set((last[0] or "").split(",")) == set(deals.key.split(",")):
+        return None, "daftar game sama dengan postingan sebelumnya"
+    n_slides = 1 + -(-len(deals.items) // sale_cards.PER_SLIDE)
+    paths = [out_path] + [_slide_path(out_path, i) for i in range(2, n_slides + 1)]
+    sale_cards.sale_slides(deals, paths, acct)
+    with open(os.path.splitext(out_path)[0] + ".games.json", "w") as f:  # daftar game untuk halaman link di bio
+        json.dump([{"title": i["title"], "url": i["url"], "disc": i["disc"],
+                    "price": captions.sale_price(deals, i["final"], with_idr=False)} for i in deals.items],
+                  f, ensure_ascii=False)
+    credit, video = None, {}
+    if kind in acct.feed_kinds:  # carousel feed berlagu (cover tetap dengan "Geser")
+        credit, video = _feed_music(acct, "seru", [{"path": p, "type": "image"} for p in paths], out_path)
+    elif acct.music:  # Reel tidak bisa digeser: cover tanpa "Geser"
+        reel_cover = _slide_path(out_path, "reel-cover")
+        sale_cards.sale_cover(deals, reel_cover, acct, swipe_hint=False)
+        credit, video = _soundtrack(acct, "seru", [(p, music.STEAM_SLIDE_SECONDS) for p in [reel_cover] + paths[1:]],
+                                    out_path, reel_cover)
+    caps = {p: captions.sale_caption(deals, p, acct, credit, reel="reel" in video) for p in ("instagram", "facebook")}
+    label = captions.SALE_STORE.get((store, region), store)
+    return {"article_id": None, "content_key": deals.key, "captions": caps,
+            "title": f"{deals.event.name.title()} {label}",
+            "slides": [{"path": p, "type": "image"} for p in paths], **video}, None
+
+
+def _duo_reel(db, acct, out_path):
+    """Video Kai & Kak Ara dari outbox nostalgia-reels: yang tertua dan belum pernah berhasil diposting."""
+    import shutil
+    posted = {r.content_key for r in db.query(SocialPost.content_key).filter(
+        SocialPost.account == acct.key, SocialPost.status == "posted", SocialPost.content_key.isnot(None))}
+    items = []
+    for name in sorted(os.listdir(settings.DUO_OUTBOX)) if os.path.isdir(settings.DUO_OUTBOX) else []:
+        if name.endswith(".json"):
+            path = os.path.join(settings.DUO_OUTBOX, name)
+            with open(path) as f:
+                it = json.load(f)
+            if it["run"] not in posted and os.path.exists(it["video"]):
+                items.append((path, it))
+    if not items:
+        return None, "belum ada video Kai & Kak Ara baru di outbox"
+    path, it = items[0]
+    base = os.path.splitext(out_path)[0]
+    reel = base + ".mp4"
+    shutil.copy(it["video"], reel)
+    shutil.copy(it["cover"], out_path)
+    tags = " ".join("#" + h for h in acct.hashtags)
+    body = it["caption"].strip()
+    caps = {
+        "instagram": f"{body}\n\n{it['credit']}\n\n{tags}".strip(),
+        "facebook": f"{body}\n\n{it['credit']}\n\n{tags}".strip(),
+    }
+    it["picked"] = datetime.now(settings.TZ).isoformat(timespec="minutes")
+    with open(path, "w") as f:
+        json.dump(it, f, ensure_ascii=False, indent=1)
+    return {"article_id": None, "content_key": it["run"], "captions": caps, "title": it["title"],
+            "reel": reel, "reel_cover": out_path, "music_credit": it["credit"],
+            "slides": [{"path": out_path, "type": "image"}]}, None
 
 
 REEL_DESC_BODY = 1200  # isi caption Facebook Reel (sisanya: sumber, link, hashtag)
@@ -430,7 +488,7 @@ def _wib_iso(dt):
     return dt.replace(tzinfo=timezone.utc).astimezone(settings.TZ).isoformat(timespec="seconds") if dt else None
 
 
-KIND_LABEL = {"news": "Berita", "steam_deals": "Promo Steam", "recap_saham": "Rekap saham",
+KIND_LABEL = {"duo_reel": "Video Kai & Kak Ara", "xbox_deals_id": "Sale Xbox ID", "xbox_deals_tr": "Sale Xbox TR", "news": "Berita", "steam_deals": "Sale Steam", "recap_saham": "Rekap saham",
               "recap_crypto": "Rekap crypto"}
 
 
