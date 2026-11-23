@@ -9,7 +9,7 @@
       "brand_handle": "@gitgit_infogame",
       "ig_user_id": "17841410447689884",
       "page_id": "1332217146648089",
-      "facebook": true,
+      "facebook": false,
       "use_article_photo": true,
       "languages": [
         "id",
@@ -305,6 +305,14 @@
         "animasilucu"
       ],
       "schedule": [
+        {
+          "time": "12:00",
+          "kind": "duo_reel"
+        },
+        {
+          "time": "16:00",
+          "kind": "duo_reel"
+        },
         {
           "time": "19:00",
           "kind": "duo_reel"
