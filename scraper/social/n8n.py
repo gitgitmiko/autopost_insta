@@ -93,8 +93,10 @@ def build_workflow(acct):
     prep = "$('Siapkan konten').first().json"
     graph = "={{ " + prep + ".graph_base }}"
     cid = "$('IG: simpan container').first().json.container_id"
-    # hanya pesan error (objek error n8n juga memuat isi request & stack trace)
-    err = "String($json.error?.message ?? $json.error?.description ?? JSON.stringify($json).slice(0, 500)).slice(0, 2000)"
+    # hanya pesan error (objek error n8n juga memuat isi request & stack trace); status carousel disebut per slide
+    err = ("String($json.error?.message ?? $json.error?.description ?? ($json.statuses ? "
+           "'Slide carousel gagal diproses Instagram: ' + $json.statuses.map((s, i) => s === 'FINISHED' ? '' : "
+           "'slide ' + (i + 1) + ' = ' + s).filter(Boolean).join(', ') : JSON.stringify($json).slice(0, 500))).slice(0, 2000)")
     retry = {"retryOnFail": True, "maxTries": 3, "waitBetweenTries": 5000}
     crons = [{"field": "cronExpression", "expression": f"{int(s['time'][3:5])} {int(s['time'][:2])} * * *"}
              for s in acct.schedule]
@@ -140,6 +142,13 @@ def build_workflow(acct):
         _if("Item masih diproses?", [3600, -340],
             "={{ !$json.statuses.some(s => ['ERROR', 'EXPIRED'].includes(s)) && $runIndex < 60 }}",
             "boolean", "true"),
+        # Item carousel yang ERROR tidak akan pernah selesai: buat ulang SEMUA item sekali (sama seperti
+        # "Ulang Reel?"), lalu cek statusnya lagi. ".first()" selalu menunjuk run terakhir "IG: kumpulkan item",
+        # jadi daftar id dan children carousel otomatis memakai hasil setelah diulang.
+        _if("IG: ulang item?", [3840, -340],
+            "={{ $json.statuses.some(s => ['ERROR', 'EXPIRED'].includes(s)) && $runIndex < 1 }}", "boolean", "true"),
+        _node("IG: jeda ulang item", "wait", 1.1, [4080, -340], {"amount": 20, "unit": "seconds"}),
+        _set("IG: siapkan ulang", [4320, -340], {"slides": ("array", "={{ " + prep + ".slides }}")}),
         _http("IG: buat carousel", [3600, -560], "POST", graph + "/{{ " + prep + ".ig_user_id }}/media",
               "httpQueryAuth", mc,
               form={"media_type": "CAROUSEL",
@@ -262,7 +271,10 @@ def build_workflow(acct):
         "IG: cek item": [to("IG: kumpulkan status"), to("Lapor IG gagal", out=1)],
         "IG: kumpulkan status": [to("Semua item siap?")],
         "Semua item siap?": [to("IG: buat carousel"), to("Item masih diproses?", out=1)],
-        "Item masih diproses?": [to("Tunggu item IG"), to("Lapor IG gagal", out=1)],
+        "Item masih diproses?": [to("Tunggu item IG"), to("IG: ulang item?", out=1)],
+        "IG: ulang item?": [to("IG: jeda ulang item"), to("Lapor IG gagal", out=1)],
+        "IG: jeda ulang item": [to("IG: siapkan ulang")],
+        "IG: siapkan ulang": [to("IG: pecah slide")],
         "IG: buat carousel": [to("IG: simpan container"), to("Lapor IG gagal", out=1)],
         "IG: simpan container": [to("Tunggu proses IG")],
         "Tunggu proses IG": [to("IG: cek status")],
