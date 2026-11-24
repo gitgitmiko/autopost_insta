@@ -45,11 +45,14 @@ def cmd_sync(args):
     keys = [args.account] if args.account else list(accounts)
     for key in keys:
         print(f"[{key}]")
-        for m in n8n.sync_account(accounts[key]):
+        for m in n8n.sync_account(accounts[key], restart=False):
             print("  -", m)
     if not args.no_restart:
         n8n.restart_n8n()
         print("✓ n8n di-restart agar jadwal workflow dimuat ulang")
+    else:
+        print("! n8n TIDAK di-restart: jadwal workflow yang baru dipublish belum aktif dan slot tidak akan jalan.\n"
+              f"  Restart sekarang: docker restart {settings.N8N_CONTAINER}")
     # API tidak memuat ulang kode sendiri; restart agar perubahan kode/tampilan langsung dipakai
     sudo = [c for c in settings.DOCKER_CMD[:-1]] if settings.DOCKER_CMD[-1] == "docker" else ["sudo"]
     r = subprocess.run(sudo + ["systemctl", "restart", "scraper-social-api"], capture_output=True, text=True)
@@ -97,7 +100,7 @@ def cmd_setup_token(args):
     accounts = settings.load_accounts()
     for key in done:
         print(f"[{key}]")
-        for m in n8n.sync_account(accounts[key]):
+        for m in n8n.sync_account(accounts[key], restart=False):
             print("  -", m)
     n8n.restart_n8n()
     print("✓ n8n di-restart agar jadwal workflow dimuat ulang")

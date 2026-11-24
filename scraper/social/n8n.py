@@ -368,8 +368,13 @@ def put_credential(cred, type_, header_or_param, value):
             f"cred-{cred['id']}")
 
 
-def sync_account(acct, publish=True):
-    """Pasang credential + workflow untuk satu akun. Return list pesan status."""
+def sync_account(acct, publish=True, restart=True):
+    """Pasang credential + workflow untuk satu akun. Return list pesan status.
+
+    Workflow yang dipublish lewat CLI baru terjadwal setelah n8n di-restart; tanpa restart jadwal lamanya
+    hilang dan slot tidak jalan sama sekali (kejadian 23-24 Nov 2026). Karena itu default-nya restart di sini;
+    pemanggil yang menyinkronkan beberapa akun sekaligus memberi restart=False lalu memanggil restart_n8n()
+    sekali di akhir."""
     msgs = []
     put_credential(API_CRED, "httpHeaderAuth", "X-API-Key", settings.API_KEY)
     mc = meta_cred(acct.key)
@@ -394,6 +399,9 @@ def sync_account(acct, publish=True):
         why = ("akun dinonaktifkan" if not acct.enabled else "ig_user_id kosong" if not acct.ig_user_id
                else "token Meta belum diisi")
         msgs.append(f"workflow TIDAK aktif: {why} — jalankan setup-token --account {acct.key}")
+    if restart:
+        restart_n8n()
+        msgs.append("n8n di-restart agar jadwal workflow dimuat ulang")
     return msgs
 
 
