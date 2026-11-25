@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 BASE_URL = os.getenv("LLM_BASE_URL", "http://127.0.0.1:20128/v1").rstrip("/")
 API_KEY = os.getenv("LLM_API_KEY", "")
 MODELS = [m.strip() for m in os.getenv(
-    "LLM_HOOK_MODELS", "gemini/gemini-3.5-flash-lite,gemini-free,gemini/gemini-3.1-flash-lite-preview").split(",")
+    "LLM_HOOK_MODELS", "gemini/gemini-3.5-flash-lite,model-free,gemini/gemini-3.1-flash-lite-preview").split(",")
     if m.strip()]
 TIMEOUT = float(os.getenv("LLM_HOOK_TIMEOUT", "12"))  # per model
 TOTAL_BUDGET = float(os.getenv("LLM_HOOK_BUDGET", "25"))  # semua model, detik
