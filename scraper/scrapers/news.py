@@ -47,6 +47,8 @@ def extract_article_text(url):
     soup = BeautifulSoup(net.get(url).text, "lxml")
     for tag in soup(["script", "style", "noscript", "aside", "nav", "footer", "header", "form", "figure"]):
         tag.decompose()
+    for tag in soup.select(".wf-hover-card, .article-ref-card, [role=tooltip]"):  # kartu hover (VLR.gg)
+        tag.decompose()
     container = soup.find("article")
     if container is None or len(container.find_all("p")) < 2:
         # pilih elemen dengan jumlah teks paragraf langsung terbanyak
@@ -56,7 +58,8 @@ def extract_article_text(url):
             if n > best_len:
                 best, best_len = el, n
         container = best or soup.body or soup
-    paras = [p.get_text(" ", strip=True) for p in container.find_all("p")]
+    paras = [re.sub(r'"\s+([^"\n]{1,40}?)\s+"', r'"\1"', re.sub(r"\s+", " ", p.get_text(" ", strip=True)))
+             for p in container.find_all("p")]
     paras = [p for p in paras if len(p) > 40 and not re.match(r"(?i)^(baca juga|simak|lihat juga|advertisement)", p)]
     return "\n\n".join(paras) or None
 

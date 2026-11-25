@@ -105,14 +105,51 @@ def process_images(db):
     return download_images(db)
 
 
+# Gambar bawaan situs (sama untuk semua artikel) — bukan foto berita.
+GENERIC_IMG = re.compile(r"vlr\.gg/img/vlr/card\.png|/og[-_]default|default[-_](share|og)|share[-_]default", re.I)
+GENERATED = "generated:esports"
+
+
+def is_generic_image(db, url):
+    if not url:
+        return False
+    if GENERIC_IMG.search(url):
+        return True
+    since = utcnow() - timedelta(days=14)
+    return db.query(Article.id).filter(Article.image_url == url, Article.scraped_at >= since).limit(4).count() >= 4
+
+
+def _generated(db, article, rec):
+    """Gambar pengganti (logo tim + foto pemain) untuk artikel yang hanya punya gambar bawaan situs."""
+    from . import esports_art
+    data = esports_art.article_art(article.url)
+    if not data:
+        rec.status, rec.error = "failed", "[og] tanpa gambar pengganti (gambar bawaan situs)"
+        db.commit()
+        return None
+    for k, v in esports_art.save(data, IMAGE_DIR, utcnow).items():
+        setattr(rec, k, v)
+    rec.source_url, rec.status, rec.error = GENERATED, "ok", None
+    db.commit()
+    return rec.file_path
+
+
 def ensure_image(db, article):
     """Path relatif gambar utama artikel; unduh sekarang bila belum ada. None jika tidak tersedia.
 
     Bila gambar dari RSS gagal (mis. ternyata link embed video), coba sekali gambar og:image halaman artikel.
     """
     rec = db.query(ArticleImage).filter_by(article_id=article.id, kind="main").one_or_none()
+    if rec and rec.status == "ok" and rec.source_url != GENERATED and is_generic_image(db, rec.source_url):
+        rec.status, rec.error = "failed", "[og] gambar bawaan situs"  # buat ulang di bawah
     if rec and (rec.status == "ok" or (rec.error or "").startswith("[og]")):
+        if rec.status != "ok" and (rec.error or "").startswith("[og] gambar bawaan"):
+            return _generated(db, article, rec)
         return rec.file_path if rec.status == "ok" else None
+    if article.image_url and is_generic_image(db, article.image_url):
+        rec = rec or ArticleImage(article_id=article.id, kind="main", source_url=article.image_url)
+        db.add(rec)
+        return _generated(db, article, rec)
     if rec is None:
         if not article.image_url:
             return None
@@ -236,6 +273,8 @@ def extract_article_details(url, title="", return_rejected=False):
     di dalam isi sesuai urutan kemunculan, youtube = daftar ID video YouTube yang disematkan."""
     soup = BeautifulSoup(net.get(url).text, "lxml")
     for tag in soup(["script", "style", "noscript", "aside", "nav", "footer", "header", "form"]):
+        tag.decompose()
+    for tag in soup.select(".wf-hover-card, .article-ref-card, [role=tooltip]"):  # kartu hover (VLR.gg)
         tag.decompose()
     container = soup.find("article")
     if container is None or len(container.find_all("p")) < 2:
