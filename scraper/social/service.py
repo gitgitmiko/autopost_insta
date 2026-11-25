@@ -294,6 +294,29 @@ def _duo_reel(db, acct, out_path):
             "slides": [{"path": out_path, "type": "image"}]}, None
 
 
+def _duo_ready(db, acct):
+    """Video Kai & Kak Ara yang sudah diproduksi tapi belum berhasil tayang, yang tertua dulu.
+
+    Aturannya sama dengan _duo_reel saat memilih video untuk diposting; dipakai dashboard untuk
+    menampilkan pratinjau video yang sudah siap sebelum slotnya tiba."""
+    posted = {r.content_key for r in db.query(SocialPost.content_key).filter(
+        SocialPost.account == acct.key, SocialPost.status == "posted", SocialPost.content_key.isnot(None))}
+    items = []
+    for name in sorted(os.listdir(settings.DUO_OUTBOX)) if os.path.isdir(settings.DUO_OUTBOX) else []:
+        if not name.endswith(".json"):
+            continue
+        try:
+            with open(os.path.join(settings.DUO_OUTBOX, name)) as f:
+                it = json.load(f)
+        except (OSError, ValueError):
+            continue
+        if it.get("run") in posted or not os.path.exists(it.get("video") or ""):
+            continue
+        items.append({"run": it["run"], "title": it.get("title"), "created": it.get("created"),
+                      "seconds": it.get("seconds")})
+    return items
+
+
 REEL_DESC_BODY = 1200  # isi caption Facebook Reel (sisanya: sumber, link, hashtag)
 
 
@@ -560,19 +583,28 @@ def overview(db, now=None, platform=None):
         if not platforms:
             continue
         rows = {(r.slot, r.platform): r for r in db.query(SocialPost).filter_by(account=acct.key, slot_date=today)}
+        # video duo yang sudah diproduksi tapi belum tayang, diurutkan untuk slot yang belum berjalan
+        duo = _duo_ready(db, acct) if any(s["kind"] == "duo_reel" for s in acct.schedule) else []
         schedule = []
         for s in sorted(acct.schedule, key=lambda x: x["time"]):
             slot = settings.slot_name(s)
             plats = []
             for p in platforms:
                 r = rows.get((slot, p))
+                post = _post_dict(r, None) if r else None
                 plats.append({"platform": p, "status": r.status if r else None,
                               "permalink": r.permalink if r else None,
+                              "title": post["title"] if post else None,
+                              "image_url": post["image_url"] if post else None,
+                              "created_at": post["created_at"] if post else None,
                               "error": (r.error or "")[:200] if r else None})
             hh, mm = map(int, s["time"].split(":"))
             due = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
-            schedule.append({"time": s["time"], "kind": s["kind"], "topic": s.get("topic"),
-                             "label": _label(s["kind"], s.get("topic")), "past": due <= now, "platforms": plats})
+            entry = {"time": s["time"], "kind": s["kind"], "topic": s.get("topic"),
+                     "label": _label(s["kind"], s.get("topic")), "past": due <= now, "platforms": plats}
+            if s["kind"] == "duo_reel" and not entry["past"]:  # slot yang sudah jalan menampilkan kontennya sendiri
+                entry["forecast"] = duo.pop(0) if duo else None
+            schedule.append(entry)
             if due > now and acct.enabled and acct.ig_user_id:
                 upcoming.append({"at": due.isoformat(timespec="minutes"), "account": acct.key, "kind": s["kind"],
                                  "label": _label(s["kind"], s.get("topic"))})
