@@ -286,7 +286,7 @@
       "brand_handle": "@kaidankakara",
       "ig_user_id": "17841454266556186",
       "page_id": "1468800429630484",
-      "facebook": true,
+      "facebook": false,
       "facebook_reels": true,
       "facebook_photos": false,
       "music": false,
@@ -306,15 +306,23 @@
       ],
       "schedule": [
         {
+          "time": "10:00",
+          "kind": "duo_reel"
+        },
+        {
           "time": "12:00",
           "kind": "duo_reel"
         },
         {
-          "time": "16:00",
+          "time": "15:00",
           "kind": "duo_reel"
         },
         {
-          "time": "19:00",
+          "time": "18:00",
+          "kind": "duo_reel"
+        },
+        {
+          "time": "20:00",
           "kind": "duo_reel"
         }
       ]
