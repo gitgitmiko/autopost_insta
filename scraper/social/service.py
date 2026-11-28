@@ -261,7 +261,8 @@ def _sale(db, acct, kind, out_path, refresh=True):
 
 
 def _duo_reel(db, acct, out_path):
-    """Video Kai & Kak Ara dari outbox nostalgia-reels: yang tertua dan belum pernah berhasil diposting."""
+    """Video Kai & Kak Ara dari outbox nostalgia-reels: yang TERBARU dan belum pernah berhasil diposting.
+    Sisanya stok cadangan (3 hari) yang baru terpakai saat produksi macet, jadi video harian tetap segar."""
     import shutil
     posted = {r.content_key for r in db.query(SocialPost.content_key).filter(
         SocialPost.account == acct.key, SocialPost.status == "posted", SocialPost.content_key.isnot(None))}
@@ -275,7 +276,7 @@ def _duo_reel(db, acct, out_path):
                 items.append((path, it))
     if not items:
         return None, "belum ada video Kai & Kak Ara baru di outbox"
-    path, it = items[0]
+    path, it = max(items, key=lambda p: (p[1].get("created") or "", p[0]))
     base = os.path.splitext(out_path)[0]
     reel = base + ".mp4"
     shutil.copy(it["video"], reel)
